@@ -70,7 +70,7 @@ def lambda_handler(event, context):
         if 'startmcsv' in text:
             disptext = start_instances(ec2_instanceid)
             line_bot_api.reply_message(line_event.reply_token, TextSendMessage(text=disptext))
-        elif 'stopcsv' in text:
+        elif 'stopmcsv' in text:
             disptext = stop_instances(ec2_instanceid)
             line_bot_api.reply_message(line_event.reply_token, TextSendMessage(text=disptext))
 
