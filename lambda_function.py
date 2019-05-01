@@ -32,13 +32,13 @@ handler = WebhookHandler(channel_secret)
 client = boto3.client('ec2')
 
 def stop_instances(instances=[]):
-    response = ec2_client().stop_instances(InstanceIds=instances)
+    response = client.stop_instances(InstanceIds=instances)
     instances = response.get('StoppingInstances')
     for instance in instances:
         if instance['CurrentState']['Code'] == 64:
-            disptext = '起動成功 現在の状態: ' + instance['CurrentState']['Name'] + ' 直前の状態: ' + instance['PreviousState']['Name']
+            disptext = '停止成功 現在の状態: ' + instance['CurrentState']['Name'] + ' 直前の状態: ' + instance['PreviousState']['Name']
         else:
-            disptext = '起動失敗 現在の状態: ' + instance['CurrentState']['Name'] + ' 直前の状態: ' + instance['PreviousState']['Name']
+            disptext = '停止失敗 現在の状態: ' + instance['CurrentState']['Name'] + ' 直前の状態: ' + instance['PreviousState']['Name']
         return disptext
 
 
