@@ -1,0 +1,2 @@
+# line_mc-sv_startstop
+lineからlambda経由でec2の起動停止をする
