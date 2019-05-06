@@ -2,6 +2,7 @@
 import boto3
 import os
 import sys
+import re
 from linebot import (
     LineBotApi, WebhookHandler
 )
@@ -39,7 +40,7 @@ def stop_instances(instances=[]):
             disptext = '停止成功 現在の状態: ' + instance['CurrentState']['Name'] + ' 直前の状態: ' + instance['PreviousState']['Name']
         else:
             disptext = '停止失敗 現在の状態: ' + instance['CurrentState']['Name'] + ' 直前の状態: ' + instance['PreviousState']['Name']
-        return disptext
+    return disptext
 
 
 def start_instances(instances=[]):
@@ -50,7 +51,14 @@ def start_instances(instances=[]):
             disptext = '起動成功 現在の状態: ' + instance['CurrentState']['Name'] + ' 直前の状態: ' + instance['PreviousState']['Name']
         else:
             disptext = '起動失敗 現在の状態: ' + instance['CurrentState']['Name'] + ' 直前の状態: ' + instance['PreviousState']['Name']
-        return disptext
+    return disptext
+
+def show_instances(instances=[]):
+    response = client.describe_instance_status(InstanceIds=instances,IncludeAllInstances=True)
+    instances = response.get('InstanceStatuses')
+    for instance in instances:
+        disptext = '現在の状態: ' + instance['InstanceState']['Name']
+    return disptext
 
 def lambda_handler(event, context):
     signature = event["headers"]["X-Line-Signature"]
@@ -67,11 +75,14 @@ def lambda_handler(event, context):
     @handler.add(MessageEvent, message=TextMessage)
     def message(line_event):
         text = line_event.message.text
-        if 'startmcsv' in text:
+        if re.match('^startmcsv$', text):
             disptext = start_instances(ec2_instanceid)
             line_bot_api.reply_message(line_event.reply_token, TextSendMessage(text=disptext))
-        elif 'stopmcsv' in text:
+        elif re.match('^stopmcsv$', text):
             disptext = stop_instances(ec2_instanceid)
+            line_bot_api.reply_message(line_event.reply_token, TextSendMessage(text=disptext))
+        elif re.match('^show$', text):
+            disptext = show_instances(ec2_instanceid)
             line_bot_api.reply_message(line_event.reply_token, TextSendMessage(text=disptext))
 
     try:
