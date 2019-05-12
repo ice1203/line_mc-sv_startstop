@@ -13,6 +13,7 @@ from linebot.exceptions import (
     LineBotApiError, InvalidSignatureError
 )
 import logging
+from botocore.exceptions import ClientError
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -31,9 +32,11 @@ if channel_access_token is None:
 line_bot_api = LineBotApi(channel_access_token)
 handler = WebhookHandler(channel_secret)
 client = boto3.client('ec2')
+dynamodb = boto3.resource('dynamodb')
+mtable    = dynamodb.Table('managed-table')
 
-def stop_instances(instances=[]):
-    response = client.stop_instances(InstanceIds=instances)
+def stop_instances(instanceids=[]):
+    response = client.stop_instances(InstanceIds=instanceids)
     instances = response.get('StoppingInstances')
     for instance in instances:
         if instance['CurrentState']['Code'] == 64:
@@ -43,8 +46,8 @@ def stop_instances(instances=[]):
     return disptext
 
 
-def start_instances(instances=[]):
-    response = client.start_instances(InstanceIds=instances)
+def start_instances(instanceids=[]):
+    response = client.start_instances(InstanceIds=instanceids)
     instances = response.get('StartingInstances')
     for instance in instances:
         if instance['CurrentState']['Code'] == 0:
@@ -53,12 +56,28 @@ def start_instances(instances=[]):
             disptext = '起動失敗 現在の状態: ' + instance['CurrentState']['Name'] + ' 直前の状態: ' + instance['PreviousState']['Name']
     return disptext
 
-def show_instances(instances=[]):
-    response = client.describe_instance_status(InstanceIds=instances,IncludeAllInstances=True)
+def show_instances(instanceids=[]):
+    response = client.describe_instance_status(InstanceIds=instanceids,IncludeAllInstances=True)
     instances = response.get('InstanceStatuses')
     for instance in instances:
         disptext = '現在の状態: ' + instance['InstanceState']['Name']
     return disptext
+
+def get_servicestat(instanceid):
+    try:
+        response = mtable.get_item(
+            Key={
+                'id': instanceid ,
+                'managed-item': "minecraft-sv-status"
+            }
+        )
+    except ClientError as e:
+        print(e.response['Error']['Message'])
+    else:
+        #item = response['Item']
+        print("dynamodb GetItem succeeded:")
+        #print(json.dumps(item, indent=4, cls=DecimalEncoder))
+        return response['Item']
 
 def lambda_handler(event, context):
     signature = event["headers"]["X-Line-Signature"]
@@ -83,6 +102,10 @@ def lambda_handler(event, context):
             line_bot_api.reply_message(line_event.reply_token, TextSendMessage(text=disptext))
         elif re.match('^show$', text):
             disptext = show_instances(ec2_instanceid)
+            if 'running' in disptext:
+                mc_svc_stat = get_servicestat(ec2_instanceid[0])
+                disptext += '\nサービス状態：' + mc_svc_stat['service_stat'] + '\nログイン人数：{}'.format(mc_svc_stat['login_num']) \
+                            + '\nログインしてる人：' + ','.join(mc_svc_stat['login_user'])
             line_bot_api.reply_message(line_event.reply_token, TextSendMessage(text=disptext))
 
     try:

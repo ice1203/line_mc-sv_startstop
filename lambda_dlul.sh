@@ -22,7 +22,7 @@ elif [ "$1" = "ul" ];then
  zip -r /tmp/${FILEN} *
  aws lambda \
     update-function-code \
-    --region ap-northeast-1
+    --region ap-northeast-1 \
     --function-name $2 \
     --zip-file fileb:///tmp/${FILEN} \
     --publish
