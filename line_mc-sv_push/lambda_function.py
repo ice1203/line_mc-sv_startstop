@@ -7,7 +7,7 @@ from linebot import (
     LineBotApi, WebhookHandler
 )
 from linebot.models import (
-    MessageEvent, TextMessage, TextSendMessage,
+    MessageEvent, JoinEvent, TextMessage, TextSendMessage,
 )
 from linebot.exceptions import (
     LineBotApiError, InvalidSignatureError
@@ -34,27 +34,6 @@ handler = WebhookHandler(channel_secret)
 client = boto3.client('ec2')
 dynamodb = boto3.resource('dynamodb')
 mtable    = dynamodb.Table('managed-table')
-
-def stop_instances(instanceids=[]):
-    response = client.stop_instances(InstanceIds=instanceids)
-    instances = response.get('StoppingInstances')
-    for instance in instances:
-        if instance['CurrentState']['Code'] == 64:
-            disptext = '停止成功 現在の状態: ' + instance['CurrentState']['Name'] + ' 直前の状態: ' + instance['PreviousState']['Name']
-        else:
-            disptext = '停止失敗 現在の状態: ' + instance['CurrentState']['Name'] + ' 直前の状態: ' + instance['PreviousState']['Name']
-    return disptext
-
-
-def start_instances(instanceids=[]):
-    response = client.start_instances(InstanceIds=instanceids)
-    instances = response.get('StartingInstances')
-    for instance in instances:
-        if instance['CurrentState']['Code'] == 0:
-            disptext = '起動成功 現在の状態: ' + instance['CurrentState']['Name'] + ' 直前の状態: ' + instance['PreviousState']['Name']
-        else:
-            disptext = '起動失敗 現在の状態: ' + instance['CurrentState']['Name'] + ' 直前の状態: ' + instance['PreviousState']['Name']
-    return disptext
 
 def show_instances(instanceids=[]):
     response = client.describe_instance_status(InstanceIds=instanceids,IncludeAllInstances=True)
@@ -91,25 +70,8 @@ def lambda_handler(event, context):
                   "headers": {},
                   "body": "Error"}
 
-    @handler.add(MessageEvent, message=TextMessage)
-    def message(line_event):
-        text = line_event.message.text
-        if re.match('^startmcsv$', text):
-            disptext = start_instances(ec2_instanceid)
-            line_bot_api.reply_message(line_event.reply_token, TextSendMessage(text=disptext))
-        elif re.match('^stopmcsv$', text):
-            disptext = stop_instances(ec2_instanceid)
-            line_bot_api.reply_message(line_event.reply_token, TextSendMessage(text=disptext))
-        elif re.match('^show$', text):
-            disptext = show_instances(ec2_instanceid)
-            if 'running' in disptext:
-                mc_svc_stat = get_servicestat(ec2_instanceid[0])
-                disptext += '\nサービス状態：' + mc_svc_stat['service_stat'] + '\nログイン人数：{}'.format(mc_svc_stat['login_num']) \
-                            + '\nログインしてる人：' + ','.join(mc_svc_stat['login_user'])
-            line_bot_api.reply_message(line_event.reply_token, TextSendMessage(text=disptext))
-
     try:
-        handler.handle(body, signature)
+        line_bot_api.push_message('C52e1a5a0fc25d52407cbe412a2f37967', TextSendMessage(text='Hello World!'))
     except LineBotApiError as e:
         logger.error("Got exception from LINE Messaging API: %s\n" % e.message)
         for m in e.error.details:
