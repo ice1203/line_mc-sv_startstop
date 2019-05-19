@@ -3,6 +3,8 @@ import boto3
 import os
 import sys
 import re
+sys.path.append(os.path.join(os.path.dirname(__file__), 'linebotAPI'))
+
 from linebot import (
     LineBotApi, WebhookHandler
 )

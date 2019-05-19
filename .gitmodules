@@ -1,0 +1,3 @@
+[submodule "linebotAPI"]
+	path = linebotAPI
+	url = https://github.com/ice1203/linebotAPI.git
