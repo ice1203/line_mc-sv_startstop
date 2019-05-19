@@ -81,6 +81,29 @@ def get_servicestat(instanceid):
         #print(json.dumps(item, indent=4, cls=DecimalEncoder))
         return response['Item']
 
+def update_dynamo(instanceid, set_linegid):
+    try:
+        response = mtable.update_item(
+            ExpressionAttributeNames={
+                '#G': 'line_gid',
+            },
+            ExpressionAttributeValues={
+                ':g': set_linegid
+            },
+            Key={
+                'id': instanceid ,
+                'managed-item': "minecraft-sv-status"
+            },
+            UpdateExpression='SET #G = :g',
+        )
+    except ClientError as e:
+        print(e.response['Error']['Message'])
+    else:
+        #item = response['Item']
+        print("dynamodb GetItem succeeded:")
+        #print(json.dumps(item, indent=4, cls=DecimalEncoder))
+        return response['Item']
+
 def lambda_handler(event, context):
     signature = event["headers"]["X-Line-Signature"]
     body = event["body"]
@@ -93,18 +116,30 @@ def lambda_handler(event, context):
                   "headers": {},
                   "body": "Error"}
 
-    @handler.add(JoinEvent)
-    def join(line_event):
-        print(line_event)
+    #@handler.add(JoinEvent)
+    #def join(line_event):
+    #    if hasattr(line_event.source,"group_id"):
+    #        update_dynamo(ec2_instanceid[0], line_event.source.group_id)
+    #    if hasattr(line_event.source,"room_id"):
+    #        update_dynamo(ec2_instanceid[0], line_event.source.room_id)
+        
     @handler.add(MessageEvent, message=TextMessage)
     def message(line_event):
         text = line_event.message.text
         if re.match('^startmcsv$', text):
             disptext = start_instances(ec2_instanceid)
             line_bot_api.reply_message(line_event.reply_token, TextSendMessage(text=disptext))
+            if hasattr(line_event.source,"group_id"):
+                update_dynamo(ec2_instanceid[0], line_event.source.group_id)
+            if hasattr(line_event.source,"room_id"):
+                update_dynamo(ec2_instanceid[0], line_event.source.room_id)
         elif re.match('^stopmcsv$', text):
             disptext = stop_instances(ec2_instanceid)
             line_bot_api.reply_message(line_event.reply_token, TextSendMessage(text=disptext))
+            if hasattr(line_event.source,"group_id"):
+                update_dynamo(ec2_instanceid[0], line_event.source.group_id)
+            if hasattr(line_event.source,"room_id"):
+                update_dynamo(ec2_instanceid[0], line_event.source.room_id)
         elif re.match('^show$', text):
             disptext = show_instances(ec2_instanceid)
             if 'running' in disptext:
@@ -112,6 +147,12 @@ def lambda_handler(event, context):
                 disptext += '\nサービス状態：' + mc_svc_stat['service_stat'] + '\nログイン人数：{}'.format(mc_svc_stat['login_num']) \
                             + '\nログインしてる人：' + ','.join(mc_svc_stat['login_user'])
             line_bot_api.reply_message(line_event.reply_token, TextSendMessage(text=disptext))
+            #if hasattr(line_event.source,"group_id"):
+            #    print(line_event.source.group_id)
+            #    update_dynamo(ec2_instanceid[0], line_event.source.group_id)
+            #if hasattr(line_event.source,"room_id"):
+            #    print(line_event.source.room_id)
+            #    update_dynamo(ec2_instanceid[0], line_event.source.room_id)
 
         if text == "カエレ":
             line_bot_api.reply_message(line_event.reply_token, TextSendMessage("ううっ・・"))
